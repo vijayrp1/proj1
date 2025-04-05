@@ -1,0 +1,475 @@
+-- GOLD : old master data model G2
+-------------
+-------------
+WITH
+FUNCTION curr_con(from_currency in varchar2,to_currency in varchar2,t_value in number,exc_rate in varchar2) return number iS
+t_v number;
+INPUT_VALUE NUMBER;
+BEGIN
+    SELECT T_VALUE,CASE WHEN from_currency = to_currency
+	            THEN t_value
+				when exc_rate is not NULL
+				then T_VALUE*(1/exc_rate)
+				ELSE
+				t_value*(SELECT exchange_rate from (select exchange_rate from  currency_exchange_rate WHERE from_currency_gid = from_currency AND to_currency_gid = to_currency and exchange_rate_gid = 'POKEMONINTL.POKEMON' ORDER BY EFFECTIVE_DATE desc) where rownum = 1) 
+										  END
+										  INTO INPUT_VALUE,T_V
+										  FROM DUAL;
+										  return t_v;
+										  end;
+SELECT gtl.line_object_no ln
+    ,gtl.attribute4 parent_bom
+    ,case when gtl.attribute3 = 'Y' then i.item_name else null end item
+	,i.description it_desc
+	,(SELECT 1
+	  FROM GTM_TRANSACTION_LINE PAR
+	  WHERE ((PAR.ITEM_STRUCTURE_GID IS NOT NULL AND PAR.PARENT_TRANS_LINE_GID IS NULL) OR (PAR.PARENT_TRANS_LINE_GID IS NULL AND PAR.ITEM_STRUCTURE_GID IS NOT NULL))
+	  AND PAR.GTM_TRANSACTION_LINE_GID = GTL.GTM_TRANSACTION_LINE_GID)  PARENT_ITEM
+	  --NVL(gtl.attribute3,'N')
+	,CASE 
+		WHEN gtl.PARENT_TRANS_LINE_GID is not null
+			THEN NULL
+	ELSE
+		i.item_name 
+	END itm_no
+	,st_l.country_code3_gid st_country1 
+	,(select NVL(MIN(HPD.PROP_VALUE),'XX') from HTTP_PROFILE_DETAIL HPD, location l, contact c, GTM_TRANS_LINE_INV_PARTY gtip where HPD.HTTP_PROFILE_GID = HPD.DOMAIN_NAME||'.GTM_CLASSIFICATION_LOOKUP_COUNTRY_CODE' and gtip.INVOLVED_PARTY_CONTACT_GID = c.contact_gid and c.location_gid = l.location_gid and gtip.involved_party_qual_gid = 'SHIP_TO' and HPD.PROP_NAME = l.country_code3_gid AND GTIP.GTM_TRANSACTION_LINE_GID = nvl(gtl.PARENT_TRANS_LINE_GID,gtl.GTM_TRANSACTION_LINE_GID)) st_country2
+	/*,case 
+	    when gtl.attribute3 = 'Y' and gtl.attribute4 = 'Y' THEN NULL
+		ELSE (SELECT c.classification_code
+				FROM gtm_item_classification ic
+					,gtm_prod_class_code c
+					,gtm_data_version dv
+				WHERE 1 = 1
+					AND ic.gtm_item_gid = i.item_gid
+					AND ic.gtm_prod_class_code_gid = c.gtm_prod_class_code_gid
+					AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+					AND dv.is_current = 'Y'
+					AND c.gtm_prod_class_type_gid = 'HTS US'
+                                        AND NVL(hide_code.remark_text,'NO') <> 'YES'
+					AND ROWNUM = 1)
+         END hts_old */
+	,case 
+	    when gtl.attribute3 = 'Y' and gtl.attribute4 = 'Y' THEN NULL
+		WHEN (select NVL(MIN(HPD.PROP_VALUE),'XX') from HTTP_PROFILE_DETAIL HPD, location l, contact c, GTM_TRANS_LINE_INV_PARTY gtip where HPD.HTTP_PROFILE_GID = HPD.DOMAIN_NAME||'.GTM_CLASSIFICATION_LOOKUP_COUNTRY_CODE' and gtip.INVOLVED_PARTY_CONTACT_GID = c.contact_gid and c.location_gid = l.location_gid and gtip.involved_party_qual_gid = 'SHIP_FROM' and HPD.PROP_NAME = l.country_code3_gid AND GTIP.GTM_TRANSACTION_LINE_GID = nvl(gtl.PARENT_TRANS_LINE_GID,gtl.GTM_TRANSACTION_LINE_GID)) = ('US')
+        OR
+		(select NVL(MIN(HPD.PROP_VALUE),'XX') from HTTP_PROFILE_DETAIL HPD, location l, contact c, GTM_TRANS_LINE_INV_PARTY gtip where HPD.HTTP_PROFILE_GID = HPD.DOMAIN_NAME||'.GTM_CLASSIFICATION_LOOKUP_COUNTRY_CODE' and gtip.INVOLVED_PARTY_CONTACT_GID = c.contact_gid and c.location_gid = l.location_gid and gtip.involved_party_qual_gid = 'SHIP_TO' and HPD.PROP_NAME = l.country_code3_gid AND GTIP.GTM_TRANSACTION_LINE_GID = nvl(gtl.PARENT_TRANS_LINE_GID,gtl.GTM_TRANSACTION_LINE_GID)) = 'XX' THEN
+		(SELECT c.classification_code
+				FROM gtm_item_classification ic
+					,gtm_prod_class_code c
+					,gtm_data_version dv
+				WHERE 1 = 1
+					AND ic.gtm_item_gid = i.item_gid
+					AND ic.gtm_prod_class_code_gid = c.gtm_prod_class_code_gid
+					AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+					AND dv.is_current = 'Y'
+					AND c.gtm_prod_class_type_gid = 'HTS '||(select NVL(MIN(HPD.PROP_VALUE),'XX') from HTTP_PROFILE_DETAIL HPD, location l, contact c, GTM_TRANS_LINE_INV_PARTY gtip where HPD.HTTP_PROFILE_GID = HPD.DOMAIN_NAME||'.GTM_CLASSIFICATION_LOOKUP_COUNTRY_CODE' and gtip.INVOLVED_PARTY_CONTACT_GID = c.contact_gid and c.location_gid = l.location_gid and gtip.involved_party_qual_gid = 'SHIP_FROM' and HPD.PROP_NAME = l.country_code3_gid AND GTIP.GTM_TRANSACTION_LINE_GID = nvl(gtl.PARENT_TRANS_LINE_GID,gtl.GTM_TRANSACTION_LINE_GID))
+                                        AND NVL(hide_code.remark_text,'NO') <> 'YES'
+					AND ROWNUM = 1)
+		ELSE (SELECT c.classification_code
+				FROM gtm_item_classification ic
+					,gtm_prod_class_code c
+					,gtm_data_version dv
+				WHERE 1 = 1
+					AND ic.gtm_item_gid = i.item_gid
+					AND ic.gtm_prod_class_code_gid = c.gtm_prod_class_code_gid
+					AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+					AND dv.is_current = 'Y'
+					AND c.gtm_prod_class_type_gid = 'HTS '||(select NVL(MIN(HPD.PROP_VALUE),'XX') from HTTP_PROFILE_DETAIL HPD, location l, contact c, GTM_TRANS_LINE_INV_PARTY gtip where HPD.HTTP_PROFILE_GID = HPD.DOMAIN_NAME||'.GTM_CLASSIFICATION_LOOKUP_COUNTRY_CODE' and gtip.INVOLVED_PARTY_CONTACT_GID = c.contact_gid and c.location_gid = l.location_gid and gtip.involved_party_qual_gid = 'SHIP_TO' and HPD.PROP_NAME = l.country_code3_gid AND GTIP.GTM_TRANSACTION_LINE_GID = nvl(gtl.PARENT_TRANS_LINE_GID,gtl.GTM_TRANSACTION_LINE_GID))
+                                        AND NVL(hide_code.remark_text,'NO') <> 'YES'
+					AND ROWNUM = 1)
+         END hts_us 
+	,(SELECT gp.description
+	FROM gtm_prod_class_code_desc gp
+      ,gtm_data_version dv
+      ,gtm_prod_class_code c
+      ,gtm_item_classification ic
+		WHERE gp.gtm_prod_class_code_gid = (SELECT NVL(MAX(c_in.gtm_prod_class_code_gid),c.classification_code)
+                                      FROM gtm_prod_class_code c_in
+                                     WHERE c_in.classification_code = SUBSTR(c.classification_code, 1, 2)
+                                       AND c_in.gtm_prod_class_type_gid = c.gtm_prod_class_type_gid
+                                       AND c_in.gtm_data_version_gid = c.gtm_data_version_gid)
+  AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+  AND ic.gtm_item_gid = gtl.item_gid
+  AND dv.is_current = 'Y'
+  AND c.gtm_prod_class_code_gid = ic.gtm_prod_class_code_gid
+  AND c.gtm_prod_class_type_gid = ic.gtm_prod_class_type_gid
+  AND ic.gtm_prod_class_type_gid = 'HTS US') HTS_DESC_old
+	,(SELECT gp.description
+	FROM gtm_prod_class_code_desc gp
+      ,gtm_data_version dv
+      ,gtm_prod_class_code c
+      ,gtm_item_classification ic
+		WHERE gp.gtm_prod_class_code_gid = (SELECT NVL(MAX(c_in.gtm_prod_class_code_gid),c.classification_code)
+                                      FROM gtm_prod_class_code c_in
+                                     WHERE c_in.classification_code = SUBSTR(c.classification_code, 1, 2)
+                                       AND c_in.gtm_prod_class_type_gid = c.gtm_prod_class_type_gid
+                                       AND c_in.gtm_data_version_gid = c.gtm_data_version_gid)
+  AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+  AND ic.gtm_item_gid = gtl.item_gid
+  AND dv.is_current = 'Y'
+  AND c.gtm_prod_class_code_gid = ic.gtm_prod_class_code_gid
+  AND c.gtm_prod_class_type_gid = ic.gtm_prod_class_type_gid
+  AND ic.gtm_prod_class_type_gid = 'HTS '||(select NVL(MIN(HPD.PROP_VALUE),'XX') from HTTP_PROFILE_DETAIL HPD, location l, contact c, GTM_TRANS_LINE_INV_PARTY gtip where HPD.HTTP_PROFILE_GID = HPD.DOMAIN_NAME||'.GTM_CLASSIFICATION_LOOKUP_COUNTRY_CODE' and gtip.INVOLVED_PARTY_CONTACT_GID = c.contact_gid and c.location_gid = l.location_gid and gtip.involved_party_qual_gid = 'SHIP_TO' and HPD.PROP_NAME = l.country_code3_gid AND GTIP.GTM_TRANSACTION_LINE_GID = nvl(gtl.PARENT_TRANS_LINE_GID,gtl.GTM_TRANSACTION_LINE_GID))) HTS_DESC
+	,(SELECT c.classification_code
+				FROM gtm_item_classification ic
+					,gtm_prod_class_code c
+					,gtm_data_version dv
+				WHERE 1 = 1
+					AND ic.gtm_item_gid = i.item_gid
+					AND ic.gtm_prod_class_code_gid = c.gtm_prod_class_code_gid
+					AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+					AND dv.is_current = 'Y'
+					AND c.gtm_prod_class_type_gid = 'NCM'
+					)NCM
+	, (CASE 
+	    WHEN gtl.attribute4 = 'Y' THEN NULL
+	    ELSE
+		(SELECT substr(c.classification_code, 1, 6)
+		FROM gtm_item_classification ic
+			,gtm_prod_class_code c
+			,gtm_data_version dv
+		WHERE 1 = 1
+			AND ic.gtm_item_gid = i.item_gid
+			AND ic.gtm_prod_class_code_gid = c.gtm_prod_class_code_gid
+			AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+			AND dv.is_current = 'Y'
+			AND gtl.country_of_origin IN (
+				'MX'
+				,'US'
+				,'CA'
+				)
+			AND c.gtm_prod_class_type_gid = 'HTS US')
+		END
+		) hts_us_6
+	,(
+		SELECT c.classification_code
+		FROM gtm_item_classification ic
+			,gtm_prod_class_code c
+			,gtm_data_version dv
+		WHERE 1 = 1
+			AND ic.gtm_item_gid = i.item_gid
+			AND ic.gtm_prod_class_code_gid = c.gtm_prod_class_code_gid
+			AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+			AND dv.is_current = 'Y'
+			AND c.gtm_prod_class_type_gid = 'ECCN US'
+		) eccn_us
+	,case 
+	    when gtl.attribute4 = 'Y' THEN NULL
+		ELSE gtl.country_of_origin 
+		END coo
+	,(
+		CASE 
+			WHEN gtl.country_of_origin IN (
+					'MX'
+					,'US'
+					,'CA'
+					)
+				THEN 'B'
+			ELSE NULL
+			END
+		) pref
+	,CASE 
+	    WHEN (SELECT COUNT(1)
+	                     FROM gtm_transaction_line gtl_in
+	                  WHERE gtl_in.PARENT_TRANS_LINE_GID = gtl.gtm_transaction_line_gid) = 0
+		THEN
+		d_f.remark_text 
+	ELSE
+		NULL
+	END d_f
+	/*,CASE 
+	    WHEN gtl.attribute3 = 'Y'
+		THEN
+		ROUND(shipped.quantity_value) 
+	ELSE
+		NULL
+	END qty*/
+	,shipped.quantity_value qty
+	,shipped.uom_code uom
+	/*,CASE 
+	    WHEN gtl.attribute3 = 'Y'
+		THEN
+		shipped.uom_code 
+	ELSE
+		NULL
+	END uom*/
+	,volume.quantity_value vol
+	/*,case 
+	    when gtl.attribute3 = 'Y' and gtl.attribute4 = 'Y' and t_type.remark_text = 'TRANSFER ORDER' then null
+	    when gtl.attribute3 = 'Y' then (case when cost.currency_value is null then round(ppu.currency_value, 2) else round(cost.currency_value, 2) end) 
+		else round(nvl(adj_uc.currency_value,adv.currency_value),2) 
+	end v_p_old */
+	/*,case 
+	    when gtl.attribute3 = 'Y' and gtl.attribute4 = 'Y' --and t_type.remark_text = 'TRANSFER ORDER' 
+		then null
+	    when gtl.attribute3 = 'Y' then ( round(curr_con(tv_l.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,tv_l.currency_value,gtl.attribute7) / NVL(NVL(REP_QTY.quantity_value, CONV_QTY.quantity_value), shipped.quantity_value), 2) ) 
+		else round(curr_con(tv_l.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,tv_l.currency_value,gtl.attribute7) / NVL(REP_QTY.quantity_value, shipped.quantity_value), 2) 
+	end v_p */
+	/*,case 
+	    when gtl.attribute3 = 'Y' AND GTL.attribute4 = 'Y' then (case when curr_con(cost.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,cost.currency_value,gtl.attribute7) is null then curr_con(PPU.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,PPU.currency_value,gtl.attribute7) else 
+		(select sum(curr_con(co.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,co.currency_value,gtl.attribute7)) from gtm_trans_line_value co where co.gtm_transaction_line_gid in (select gtm_transaction_line_gid from gtm_transaction_line   where PARENT_TRANS_LINE_GID = gtl.gtm_transaction_line_gid) and co.GTM_VALUE_QUALIFIER_GID = 'POKEMONINTL.ADJUSTED_UNIT_COST')
+		end) 
+WHEN gtl.attribute3 = 'Y' THEN 
+		(case when curr_con(cost.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,cost.currency_value,gtl.attribute7) is null then curr_con(PPU.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,PPU.currency_value,gtl.attribute7) else 
+		curr_con(cost.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,cost.currency_value,gtl.attribute7)
+		end)
+		else nvl(curr_con(adj_uc.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,adj_uc.currency_value,gtl.attribute7),curr_con(adv.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,adv.currency_value,gtl.attribute7)) 
+	end v_p*/--14 aug
+	,case 
+	    when gtl.attribute3 = 'Y' AND GTL.attribute4 = 'Y' then ((case when curr_con(cost.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,cost.currency_value,gtl.attribute7) is null then (curr_con(PPU.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,PPU.currency_value,gtl.attribute7)) else 
+		(select sum(curr_con(co.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,co.currency_value,gtl.attribute7)) from gtm_trans_line_value co where co.gtm_transaction_line_gid in (select gtm_transaction_line_gid from gtm_transaction_line   where PARENT_TRANS_LINE_GID = gtl.gtm_transaction_line_gid) and co.GTM_VALUE_QUALIFIER_GID = 'ADJUSTED VALUE')
+		end) *(nvl(CONV_QTY.quantity_value,shipped.quantity_value)/shipped.quantity_value))
+WHEN gtl.attribute3 = 'Y' THEN 
+		((case when curr_con(cost.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,cost.currency_value,gtl.attribute7) is null then (curr_con(PPU.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,PPU.currency_value,gtl.attribute7)) else 
+		curr_con(cost.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,cost.currency_value,gtl.attribute7)
+		end)*(nvl(CONV_QTY.quantity_value,shipped.quantity_value)/shipped.quantity_value))
+		else nvl(curr_con(adj_uc.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,adj_uc.currency_value,gtl.attribute7),curr_con(adv.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,adv.currency_value,gtl.attribute7)) 
+	end v_p
+	,round(tv_l.currency_value,2) tv_l_old
+	,curr_con(tv_l.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,tv_l.currency_value,gtl.attribute7) tv_l 
+	/*,CASE 
+	    WHEN gtl.PARENT_TRANS_LINE_GID is not null
+		THEN round(curr_con(tv_l.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,tv_l.currency_value,gtl.attribute7)) 
+	ELSE
+		NULL
+	END tv_l_su*/
+	,CASE 
+	    WHEN (gtl.PARENT_TRANS_LINE_GID is not null) or (gtl.attribute3 = 'Y')
+		THEN round(curr_con(tv_l.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,tv_l.currency_value,gtl.attribute7)) 
+	ELSE
+		NULL
+	END tv_l_su
+	,CASE 
+	    WHEN gtl.PARENT_TRANS_LINE_GID is null
+		THEN tgw_l.quantity_value 
+	ELSE
+		NULL
+	END	tgw_l
+	,tnw_l.quantity_value tnw_l
+	,round(pkg_uom.convert_uom('WEIGHT',tnw_l.uom_code,'KG',tnw_l.quantity_value),2) tnw_kg
+	,CASE 
+	    WHEN gtl.attribute3 = 'Y' and gtl.attribute4 = 'Y'
+		THEN
+		NULL 
+	ELSE
+	round(pkg_uom.convert_uom('WEIGHT',gw_l.uom_code,'KG',gw_l.quantity_value),2)
+	END gw_kg
+	,gw_l.quantity_value gw_l
+	,nw_l.quantity_value nw_l
+	,CASE 
+	    WHEN gtl.attribute3 = 'Y' and gtl.attribute4 = 'Y'
+		THEN
+		NULL 
+	ELSE
+		round(pkg_uom.convert_uom('WEIGHT',nw_l.uom_code,'KG',nw_l.quantity_value),2)
+	END	nw_kg
+	,CASE 
+	    WHEN gtl.PARENT_TRANS_LINE_GID is null
+		THEN
+		tgw_l.uom_code 
+	ELSE
+		NULL
+	END	tgw_uom
+	,tnw_l.uom_code tnw_uom
+	,gw_l.uom_code gu
+	,nw_l.uom_code nu
+	,CASE 
+	    WHEN (SELECT COUNT(1)
+	                     FROM gtm_transaction_line gtl_in
+	                  WHERE gtl_in.PARENT_TRANS_LINE_GID = gtl.gtm_transaction_line_gid) = 0 AND gtl.attribute3 = 'Y'
+		THEN
+                    NVL(NVL(REP_QTY.quantity_value, CONV_QTY.quantity_value), shipped.quantity_value)
+		WHEN (SELECT COUNT(1)
+	           FROM gtm_transaction_line gtl_in
+	          WHERE gtl_in.PARENT_TRANS_LINE_GID is not null and gtl_in.gtm_transaction_line_gid = gtl.gtm_transaction_line_gid) > 0
+		THEN
+		ROUND(NVL(REP_QTY.quantity_value, shipped.quantity_value))		
+        ELSE 
+             NULL
+        END  CONV_QTY
+	,CASE 
+	    WHEN (SELECT COUNT(1)
+	                     FROM gtm_transaction_line gtl_in
+	                  WHERE gtl_in.PARENT_TRANS_LINE_GID = gtl.gtm_transaction_line_gid) = 0 AND gtl.attribute3 = 'Y'
+		THEN
+                    NVL(NVL(REP_QTY.UOM_CODE, CONV_QTY.UOM_CODE), shipped.uom_code)
+		WHEN (SELECT COUNT(1)
+	           FROM gtm_transaction_line gtl_in
+	          WHERE gtl_in.PARENT_TRANS_LINE_GID is not null and gtl_in.gtm_transaction_line_gid = gtl.gtm_transaction_line_gid) > 0
+		THEN
+		NVL(REP_QTY.UOM_CODE, shipped.uom_code)
+                 ELSE 
+                     NULL
+                 END CONV_UOM
+	,tpi.quantity_value tpi
+	,tca.quantity_value tca
+	,cases.quantity_value cases
+	,instructions.remark_text instructions
+	,israel.remark_text israel
+	,BROKER.remark_text broker_statement
+	,ord_curr.remark_text order_currency 
+	,CASE 
+		WHEN height_h.quantity_value IS NOT NULL
+			AND width_h.quantity_value IS NOT NULL
+			AND length_h.quantity_value IS NOT NULL
+			AND height_h.uom_code = width_h.uom_code
+			AND height_h.uom_code = length_h.uom_code
+			THEN height_h.quantity_value || height_h.uom_code || ' X ' || width_h.quantity_value || height_h.uom_code || ' X ' || length_h.quantity_value || height_h.uom_code
+		ELSE NULL
+		END DIMS
+	,(CASE WHEN DECODE((select count(1) from gtm_transaction_line gtl_in WHERE gtl_in.parent_trans_line_gid = gtl.gtm_transaction_line_gid),0,'PRINT NET WEIGHT') = 'PRINT NET WEIGHT' THEN nw_l.quantity_value ELSE NULL END) net_wt
+	,(CASE WHEN DECODE((select count(1) from gtm_transaction_line gtl_in WHERE gtl_in.parent_trans_line_gid = gtl.gtm_transaction_line_gid),0,'PRINT NET WEIGHT') = 'PRINT NET WEIGHT' THEN nw_l.UOM_CODE ELSE NULL END) n_u
+	,pallet.quantity_value pallet
+	,(CASE WHEN DECODE((select count(1) from gtm_transaction_line gtl_in WHERE gtl_in.gtm_transaction_line_gid = gtl.parent_trans_line_gid),0,'PRINT NET WEIGHT') = 'PRINT NET WEIGHT' THEN gw_l.quantity_value ELSE NULL END) gro_wt
+	,(CASE WHEN DECODE((select count(1) from gtm_transaction_line gtl_in WHERE gtl_in.gtm_transaction_line_gid = gtl.parent_trans_line_gid),0,'PRINT NET WEIGHT') = 'PRINT NET WEIGHT' THEN gw_l.UOM_CODE ELSE NULL END) g_u
+	,(CASE WHEN gtl.attribute3 = 'Y' and gtl.attribute4 is NULL THEN CASES.quantity_value ELSE NULL END) CASES1
+	,CASE 
+	    WHEN gtl.attribute3 = 'Y' and gtl.attribute4 = 'Y'
+		THEN
+		NULL 
+	ELSE
+		(SELECT c.classification_code
+				FROM gtm_item_classification ic
+					,gtm_prod_class_code c
+					,gtm_data_version dv
+				WHERE 1 = 1
+					AND ic.gtm_item_gid = i.item_gid
+					AND ic.gtm_prod_class_code_gid = c.gtm_prod_class_code_gid
+					AND dv.gtm_data_version_gid = c.gtm_data_version_gid
+					AND dv.is_current = 'Y'
+					AND c.gtm_prod_class_type_gid = 'HTS BR'
+				)
+	END HTS_BR
+	,(CASE WHEN DECODE((select count(1) from gtm_transaction_line gtl_in WHERE (gtl_in.gtm_transaction_line_gid = gtl.parent_trans_line_gid)),0,'PRINT PALLET') = 'PRINT PALLET' THEN pallet.quantity_value ELSE NULL END) PALLET1
+	,ROUND((CASE WHEN nw_l.uom_code = 'LB' THEN nw_l.quantity_value/2.2 ELSE nw_l.quantity_value END),2) NETWEIGHT
+	/*,(CASE WHEN shipped.uom_code = 'EA' THEN shipped.quantity_value ELSE CONV_QTY.quantity_value END * 
+  (CASE 
+     WHEN gtl.attribute3 = 'Y' AND gtl.attribute4 = 'Y' AND t_type.remark_text = 'TRANSFER ORDER' THEN null 
+     WHEN gtl.attribute3 = 'Y' THEN 
+       (CASE WHEN cost.currency_value IS NULL THEN ROUND(ppu.currency_value, 2) ELSE ROUND(cost.currency_value, 2) END) 
+     ELSE ROUND(adv.currency_value, 2)
+   END)
+) AS TOTALS_old */
+	,(CASE WHEN shipped.uom_code = 'EA' THEN shipped.quantity_value ELSE CONV_QTY.quantity_value END * 
+  (CASE 
+     WHEN gtl.attribute3 = 'Y' AND gtl.attribute4 = 'Y' AND t_type.remark_text = 'TRANSFER ORDER' THEN null 
+     WHEN gtl.attribute3 = 'Y' THEN 
+       (CASE WHEN curr_con(cost.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,cost.currency_value,gtl.attribute7) IS NULL THEN ROUND(curr_con(ppu.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,ppu.currency_value,gtl.attribute7), 2) ELSE ROUND(curr_con(cost.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,cost.currency_value,gtl.attribute7), 2) END) 
+     ELSE ROUND(curr_con(adv.CURRENCY_VALUE_CURRENCY_GID,ord_curr.remark_text,adv.currency_value,gtl.attribute7), 2)
+   END)
+) AS TOTALS 
+	,tpa.quantity_value tpa
+	,total_gross.quantity_value total_gross
+FROM gtm_transaction gt
+	,gtm_transaction_line gtl
+	,item i
+    ,gtm_transaction_involved_party st 
+	,contact st_c 
+	,location st_l 
+	,gtm_trans_line_quantity shipped
+	,gtm_trans_line_quantity volume
+	,gtm_trans_line_value ppu
+	,gtm_trans_line_value cost
+	,gtm_trans_line_value tv_l
+	,gtm_transaction_quantity tgw_l
+	,gtm_transaction_quantity tpa
+	,gtm_transaction_quantity tpi
+	,gtm_transaction_quantity tca
+	,gtm_transaction_quantity tnw_l
+	,gtm_transaction_quantity height_h
+	,gtm_transaction_quantity width_h
+	,gtm_transaction_quantity length_h
+	,gtm_trans_line_quantity gw_l
+	,gtm_trans_line_quantity nw_l
+	,gtm_trans_line_quantity pallet
+	,gtm_trans_line_quantity CONV_QTY
+	,gtm_trans_line_report_quantity REP_QTY
+	,gtm_trans_line_quantity CHILDQTY --FEB14
+	,gtm_trans_line_quantity cases
+	,gtm_transaction_remark hide_code
+	,gtm_transaction_remark instructions
+	,gtm_transaction_remark israel
+	,gtm_transaction_remark BROKER
+	,gtm_trans_line_remark d_f
+	,gtm_transaction_remark ord_curr 
+	,gtm_trans_line_value adv
+	,gtm_trans_line_value adj_uc
+	,gtm_transaction_remark t_type
+	,gtm_transaction_quantity total_gross
+WHERE 1 = 1
+	AND gt.gtm_transaction_gid = gtl.gtm_transaction_gid
+	and gt.gtm_transaction_gid = st.gtm_transaction_gid (+) 
+	and st.involved_party_contact_gid = st_c.contact_gid (+) 
+    and st_c.location_gid = st_l.location_gid (+)
+    and st.involved_party_qual_gid (+)= 'SHIP_TO'
+	AND gtl.item_gid = i.item_gid
+	AND gtl.gtm_transaction_line_gid = ppu.gtm_transaction_line_gid(+)
+	AND gtl.gtm_transaction_line_gid = tv_l.gtm_transaction_line_gid(+)
+	AND tv_l.gtm_value_qualifier_gid(+) = 'TOTAL VALUE'
+	AND gtl.gtm_transaction_line_gid = shipped.gtm_transaction_line_gid(+)
+	AND gtl.gtm_transaction_line_gid = adv.gtm_transaction_line_gid (+)
+	AND adv.gtm_value_qualifier_gid (+)= 'ADJUSTED VALUE'
+	AND gtl.gtm_transaction_line_gid = adj_uc.gtm_transaction_line_gid (+)
+	AND adj_uc.gtm_value_qualifier_gid (+)= 'POKEMONINTL.ADJUSTED_UNIT_COST'
+	AND shipped.gtm_quantity_type_gid(+) = 'SHIPPED'
+	AND gt.GTM_TRANSACTION_GID = tpi.GTM_TRANSACTION_GID(+)
+	AND tpi.gtm_quantity_type_gid(+) = 'SHIPPED'
+	AND gt.GTM_TRANSACTION_GID = tgw_l.GTM_TRANSACTION_GID(+)
+	AND tgw_l.gtm_quantity_type_gid(+) = 'GROSS WEIGHT'
+	AND gt.GTM_TRANSACTION_GID = height_h.GTM_TRANSACTION_GID(+)
+	AND height_h.gtm_quantity_type_gid(+) = 'POKEMONINTL.HEIGHT'
+	AND gt.GTM_TRANSACTION_GID = tpa.GTM_TRANSACTION_GID(+)
+	AND tpa.gtm_quantity_type_gid(+) = 'POKEMONINTL.PALLET'
+	AND gt.GTM_TRANSACTION_GID = tca.GTM_TRANSACTION_GID(+)
+	AND tca.gtm_quantity_type_gid(+) = 'POKEMONINTL.TOTAL CASES'
+	AND gtl.gtm_transaction_line_gid = cases.gtm_transaction_line_gid(+)
+	AND cases.gtm_quantity_type_gid(+) = 'POKEMONINTL.CASES'
+	AND gt.GTM_TRANSACTION_GID = width_h.GTM_TRANSACTION_GID(+)
+	AND width_h.gtm_quantity_type_gid(+) = 'POKEMONINTL.WIDTH'
+	AND gt.GTM_TRANSACTION_GID = length_h.GTM_TRANSACTION_GID(+)
+	AND length_h.gtm_quantity_type_gid(+) = 'POKEMONINTL.LENGTH'
+	AND gt.GTM_TRANSACTION_GID = tnw_l.GTM_TRANSACTION_GID(+)
+	AND tnw_l.gtm_quantity_type_gid(+) = 'TOTAL NET WEIGHT'
+	AND gtl.gtm_transaction_line_gid = gw_l.gtm_transaction_line_gid(+)
+	AND gw_l.gtm_quantity_type_gid(+) = 'GROSS WEIGHT'
+	AND gtl.gtm_transaction_line_gid = CONV_QTY.gtm_transaction_line_gid(+)
+	AND CONV_QTY.gtm_quantity_type_gid(+) = 'POKEMONINTL.CONVERTED_QUANTITY'
+	AND gtl.gtm_transaction_line_gid = REP_QTY.gtm_transaction_line_gid(+)
+	AND REP_QTY.ATTRIBUTE_NAME(+) = 'REPORTING UOM 1'
+	AND gtl.gtm_transaction_line_gid = CHILDQTY.gtm_transaction_line_gid(+)
+	AND CHILDQTY.gtm_quantity_type_gid(+) = 'QUANTITY' -- FEB14
+	AND gtl.gtm_transaction_line_gid = pallet.gtm_transaction_line_gid(+)
+	AND pallet.gtm_quantity_type_gid(+) = 'POKEMONINTL.PALLET'
+	AND gtl.gtm_transaction_line_gid = nw_l.gtm_transaction_line_gid(+)
+	AND nw_l.gtm_quantity_type_gid(+) = 'NET_WEIGHT'
+	AND gt.GTM_TRANSACTION_GID = total_gross.GTM_TRANSACTION_GID(+)
+	AND total_gross.gtm_quantity_type_gid(+) = 'GROSS WEIGHT'
+	AND gtl.gtm_transaction_line_gid = volume.gtm_transaction_line_gid(+)
+	AND volume.gtm_quantity_type_gid(+) = 'VOLUME'
+	AND ppu.gtm_value_qualifier_gid(+) = 'PRICE PER UNIT'
+	AND gtl.gtm_transaction_line_gid = cost.gtm_transaction_line_gid(+)
+	AND cost.gtm_value_qualifier_gid(+) = 'UNIT COST'
+	AND gt.gtm_transaction_gid = hide_code.gtm_transaction_gid(+)
+	AND hide_code.remark_qual_gid(+) = 'POKEMONINTL.HIDE_CLASSIFICATION_CODES'
+	AND gt.gtm_transaction_gid = instructions.gtm_transaction_gid(+)
+	AND instructions.remark_qual_gid(+) = 'POKEMONINTL.SHIPPING_INSTRUCTIONS'
+	AND gt.gtm_transaction_gid = israel.gtm_transaction_gid(+)
+	AND israel.remark_qual_gid(+) = 'POKEMONINTL.ISRAEL_STATEMENT'
+	AND gt.gtm_transaction_gid = BROKER.gtm_transaction_gid(+)
+	AND BROKER.remark_qual_gid(+) = 'POKEMONINTL.BROKER_STATMENT_TEXT'
+	and gtl.gtm_transaction_line_gid = d_f.gtm_transaction_line_gid (+)
+	and d_f.remark_qual_gid (+)= 'POKEMONINTL.DOMESTIC_FOREIGN'
+	AND gt.gtm_transaction_gid = ord_curr.gtm_transaction_gid(+) 
+	AND ord_curr.remark_qual_gid(+) = 'POKEMONINTL.ORDER_CURRENCY'
+	and gt.gtm_transaction_gid = t_type.gtm_transaction_gid
+	and t_type.remark_qual_gid = 'POKEMONINTL.TRANSACTION_TYPE'
+	AND NOT EXISTS (
+		SELECT 1
+		FROM gtm_trans_line_remark
+		where gtm_transaction_line_gid = gtl.gtm_transaction_line_gid
+		and remark_qual_gid = 'ITEM_TYPE'
+		and remark_text IN (SELECT PROP_NAME FROM HTTP_PROFILE_DETAIL WHERE HTTP_PROFILE_GID in( 'POKEMONINTL.SERVICE_ITEM_TYPES','POKEMONINTL.PACKAGE_ITEM_TYPES'))
+		)
+	AND gt.gtm_transaction_gid = :p_transaction_gid
+ORDER BY gtl.gtm_transaction_line_xid ASC
